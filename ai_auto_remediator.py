@@ -197,6 +197,10 @@ def main():
         
     print(f"[!] Detected {len(findings)} successful exploits from the Genetic Algorithm.")
     
+    # Configure Git Identity (required for Jenkins to commit)
+    subprocess.run(["git", "config", "user.email", "ai-blue-team@genepatch.local"], check=False)
+    subprocess.run(["git", "config", "user.name", "AI Auto-Remediator"], check=False)
+    
     # Create a new local branch for all fixes
     branch_name = f"ai-patch-{int(time.time())}"
     print(f"[*] Checking out new local branch: {branch_name}")
