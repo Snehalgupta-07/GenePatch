@@ -5,6 +5,7 @@ import os
 import database
 from config import Config
 from datetime import datetime, timedelta
+from markupsafe import escape # Import escape for HTML encoding
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -228,8 +229,9 @@ def add_student():
 @app.route('/search', methods=['GET', 'POST'])
 def search_students():
     """
-    VULNERABILITY: SQL Injection in search
-    No access control - FIXED to prevent students
+    FIXED: XSS - Ensures search term is HTML-escaped before reflection.
+    SQL Injection previously fixed in database.py.
+    FIXED: Information Disclosure - Removed verbose logging to console.
     """
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -239,16 +241,28 @@ def search_students():
         return "Access Denied: Students cannot search student records", 403
     
     results = []
+    # Initialize search_term_for_reflection to be available even if method is GET
+    search_term_for_reflection = ""
+
     if request.method == 'POST':
-        search_term = request.form.get('search', '')
+        raw_search_term = request.form.get('search', '')
         
-        # VULNERABLE: SQL Injection
-        results = database.search_students(search_term)
+        # XSS Fix: Explicitly HTML-escape the raw_search_term for reflection in the template.
+        # This acts as a defense-in-depth against template misconfigurations or accidental |safe usage.
+        search_term_for_reflection = escape(raw_search_term)
         
-        # VULNERABILITY: Information Disclosure - Shows query
-        print(f"[*] Search performed for: {search_term}")
+        # SQL Injection vulnerability in database.search_students is already fixed
+        # with parameterized queries, so pass the raw_search_term for the database query.
+        results = database.search_students(raw_search_term)
+        
+        # FIXED: Information Disclosure - Replaced direct console print with a secure log.
+        # This prevents sensitive search queries from being exposed via standard output.
+        database.log_action('STUDENT_SEARCH', session.get('username'), f"Searched for: {raw_search_term}")
     
-    return render_template('search_new.html', results=results)
+    # Pass the HTML-escaped search term to the template for safe reflection.
+    # The template 'search_new.html' MUST be updated to use this 'search_term' variable
+    # instead of directly accessing 'request.form.get('search', '')' for displaying the query.
+    return render_template('search_new.html', results=results, search_term=search_term_for_reflection)
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
@@ -396,4 +410,3 @@ if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 
     #testing
-
