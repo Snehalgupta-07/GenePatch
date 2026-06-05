@@ -1,14 +1,19 @@
 # Main Flask Application - Vulnerable Student Management System
-from flask import Flask, render_template, request, redirect, session, url_for, send_file
+from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash # Added flash
 from werkzeug.utils import secure_filename
 import os
 import database
 from config import Config
 from datetime import datetime, timedelta
 from markupsafe import escape # Import escape for HTML encoding
+from flask_wtf.csrf import CSRFProtect, CSRFError # NEW: Import CSRFProtect and CSRFError
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# NEW: Initialize CSRF protection
+# Requires app.config['SECRET_KEY'] to be set in Config (e.g., in config.py)
+csrf = CSRFProtect(app) 
 
 # Initialize database
 if not os.path.exists(database.DB_NAME):
@@ -46,7 +51,7 @@ def login():
     1. SQL Injection in authentication
     2. NO rate limiting (Brute Force attack)
     3. Weak password handling
-    4. No CSRF protection
+    4. No CSRF protection (for login form itself, but also general lack of CSRF tokens throughout)
     5. Sensitive error messages
     """
     if request.method == 'POST':
@@ -58,7 +63,7 @@ def login():
         # No rate limiting - allows unlimited login attempts
         record_login_attempt(username)
         
-        # SQL Injection vulnerability here
+        # SQL Injection vulnerability here (FIXED in database.py)
         user = database.authenticate_user(username, password)
         
         if user:
@@ -108,7 +113,7 @@ def students():
         return "Access Denied: Students cannot view all student records", 403
     
     conn = database.sqlite3.connect(database.DB_NAME)
-    cursor = conn.cursor()
+    cursor = conn.cursor())
     cursor.execute('SELECT id, roll_no, name, email, phone, ssn FROM students')
     students_list = cursor.fetchall()
     conn.close()
@@ -129,7 +134,7 @@ def view_student(student_id):
     if role == 'student':
         return "Access Denied: Students cannot view other student records", 403
     
-    # VULNERABLE: Direct parameter use - SQL Injection
+    # VULNERABLE: Direct parameter use - SQL Injection (FIXED in database.py)
     student = database.get_student_details(student_id)
     
     if not student:
@@ -193,9 +198,11 @@ def student_grades():
 @app.route('/add_student', methods=['GET', 'POST'])
 def add_student():
     """
-    VULNERABILITY: No input validation, SQL Injection
-    No privilege check (any user can add students)
-    FIXED: Now restricts to admin only
+    VULNERABILITY: No input validation, SQL Injection (FIXED in database.py)
+    VULNERABILITY: No privilege check (any user can add students) (FIXED: Now restricts to admin only)
+    VULNERABILITY: No CSRF protection
+    FIX: CSRF protection is now enforced by Flask-CSRFProtect globally, requiring a token for POST requests.
+         The template add_student_new.html must include {{ csrf_token() }} inside the form.
     """
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -205,6 +212,9 @@ def add_student():
         return "Access Denied: Only admins can add students", 403
     
     if request.method == 'POST':
+        # Flask-CSRFProtect automatically validates the token here before this code executes.
+        # If the token is missing or invalid, Flask-CSRFProtect will return a 400 error.
+        
         # No input validation or sanitization
         roll_no = request.form.get('roll_no', '')
         name = request.form.get('name', '')
@@ -214,14 +224,12 @@ def add_student():
         ssn = request.form.get('ssn', '')
         gpa = request.form.get('gpa', '0')
         
-        # VULNERABLE: No validation, SQL injection possible
+        # VULNERABLE: No validation, SQL injection possible (FIXED in database.py)
         if database.add_student(roll_no, name, email, phone, address, ssn, gpa):
-            import flask
-            flask.flash('Student added successfully!', 'success')
+            flash('Student added successfully!', 'success')
             return redirect(url_for('dashboard'))
         else:
-            import flask
-            flask.flash('Error adding student', 'danger')
+            flash('Error adding student', 'danger')
             return redirect(url_for('add_student'))
     
     return render_template('add_student_new.html')
@@ -283,15 +291,13 @@ def upload_file():
     
     if request.method == 'POST':
         if 'file' not in request.files:
-            import flask
-            flask.flash('No file selected', 'danger')
+            flash('No file selected', 'danger')
             return redirect(url_for('upload_file'))
         
         file = request.files['file']
         
         if file.filename == '':
-            import flask
-            flask.flash('No file selected', 'danger')
+            flash('No file selected', 'danger')
             return redirect(url_for('upload_file'))
         
         # VULNERABILITY: No proper file validation
@@ -310,8 +316,7 @@ def upload_file():
         # VULNERABILITY: Information Disclosure - Log file path
         database.log_action('FILE_UPLOAD', session.get('username'), f"Uploaded file: {filepath}")
         
-        import flask
-        flask.flash(f'File "{filename}" uploaded successfully!', 'success')
+        flash(f'File "{filename}" uploaded successfully!', 'success')
         return redirect(url_for('dashboard'))
     
     return render_template('upload_new.html')
@@ -377,7 +382,7 @@ def view_logs():
     if role != 'admin':
         return "Access Denied: Only admins can view logs", 403
     
-    # VULNERABILITY: No role-based access control
+    # VULNERABILITY: No role-based access control (FIXED above)
     # Should be admin-only
     
     conn = database.sqlite3.connect(database.DB_NAME)
@@ -390,9 +395,21 @@ def view_logs():
 
 @app.route('/logout')
 def logout():
-    """VULNERABILITY: No CSRF token on logout"""
+    """
+    VULNERABILITY: No CSRF token on logout
+    FIX: Flask-CSRFProtect also protects GET requests if configured, but typically logout
+         should be a POST request with a token. For simplicity, this fix focuses on POST forms.
+         A more complete fix would ensure logout is POST and has a token.
+    """
     session.clear()
+    flash('You have been logged out.', 'info') # Added a flash message for logout
     return redirect(url_for('login'))
+
+# NEW: Specific error handler for CSRF errors
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    flash("CSRF token missing or invalid. Please try again.", "danger")
+    return redirect(url_for('dashboard')) # Redirect to a safe page or the form page again
 
 @app.errorhandler(404)
 def not_found(error):
