@@ -9,14 +9,14 @@ A Flask-based Student Management System intentionally built with multiple securi
 ## INTENTIONAL VULNERABILITIES
 
 ### 1. SQL INJECTION (CWE-89)
-**Location:** [database.py](database.py) - Functions: `authenticate_user()`, `search_students()`, `get_student_details()`, `add_student()`
+**Location:** [database.py](database.py) - Functions: `authenticate_user()`, `search_students()`, `get_student_details()`, `add_student() `
 
 **Vulnerability Details:**
 - Uses string concatenation for SQL queries instead of parameterized queries
 - Attackers can inject SQL code through login, search, and add student forms
 - Example payload: `' OR '1'='1`
 
-**Attack Scenarios:**
+**Attack Scenarios - :**
 ```
 Login form SQL Injection:
 username: admin' --
