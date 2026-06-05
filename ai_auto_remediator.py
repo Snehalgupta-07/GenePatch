@@ -209,6 +209,13 @@ def main():
         apply_patch_and_commit(patch_data)
         
     print(f"\n[*] All fixes applied. Pushing branch '{branch_name}' to GitHub...")
+    
+    # Inject token into the remote URL to bypass the invisible password prompt in Jenkins
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token:
+        auth_url = f"https://oauth2:{github_token}@github.com/Snehalgupta-07/GenePatch.git"
+        subprocess.run(["git", "remote", "set-url", "origin", auth_url], check=False, capture_output=True)
+    
     subprocess.run(["git", "push", "-u", "origin", branch_name], check=False)
     
     # Trigger the automatic Pull Request
