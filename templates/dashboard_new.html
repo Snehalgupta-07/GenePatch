@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ISRM System{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <h2 class="section-title">Welcome back, {{ session.get('username') }}</h2>
+        <p class="section-sub">You are logged in as a <strong>{{ session.get('role').title() }}</strong></p>
+    </div>
+</div>
+
+{% if session.get('role') == 'admin' %}
+    <!-- ADMIN DASHBOARD -->
+    <div class="stats-grid">
+        <a href="{{ url_for('students') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon blue">👥</div>
+                <div>
+                    <div class="stat-value">Students</div>
+                    <div class="stat-label">View Directory</div>
+                </div>
+            </div>
+        </a>
+        <a href="{{ url_for('add_student') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon green">➕</div>
+                <div>
+                    <div class="stat-value">Add</div>
+                    <div class="stat-label">New Student</div>
+                </div>
+            </div>
+        </a>
+        <a href="{{ url_for('upload_file') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon gold">📁</div>
+                <div>
+                    <div class="stat-value">Files</div>
+                    <div class="stat-label">Upload & Manage</div>
+                </div>
+            </div>
+        </a>
+        <a href="{{ url_for('view_logs') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon navy">📋</div>
+                <div>
+                    <div class="stat-value">Logs</div>
+                    <div class="stat-label">System Audit</div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Quick Actions</div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <a href="{{ url_for('search_students') }}" class="btn btn-outline"><span class="nav-icon">🔍</span> Search Records</a>
+            <a href="#" class="btn btn-outline"><span class="nav-icon">🛡️</span> Security Audit</a>
+            <a href="#" class="btn btn-outline"><span class="nav-icon">🔑</span> Change Password</a>
+        </div>
+    </div>
+
+{% elif session.get('role') == 'student' %}
+    <!-- STUDENT DASHBOARD -->
+    <div class="stats-grid">
+        <a href="{{ url_for('student_profile') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon blue">👤</div>
+                <div>
+                    <div class="stat-value">Profile</div>
+                    <div class="stat-label">View Details</div>
+                </div>
+            </div>
+        </a>
+        <a href="{{ url_for('student_grades') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon green">📊</div>
+                <div>
+                    <div class="stat-value">Grades</div>
+                    <div class="stat-label">Academic Report</div>
+                </div>
+            </div>
+        </a>
+        <a href="#" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon gold">📑</div>
+                <div>
+                    <div class="stat-value">Transcript</div>
+                    <div class="stat-label">Download PDF</div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Account Settings</div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <a href="#" class="btn btn-outline"><span class="nav-icon">🔑</span> Change Password</a>
+            <a href="#" class="btn btn-outline"><span class="nav-icon">📧</span> Update Email</a>
+            <a href="#" class="btn btn-outline"><span class="nav-icon">📱</span> Update Phone</a>
+        </div>
+    </div>
+
+{% else %}
+    <!-- REGULAR USER DASHBOARD -->
+    <div class="stats-grid">
+        <a href="{{ url_for('students') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon blue">👥</div>
+                <div>
+                    <div class="stat-value">Students</div>
+                    <div class="stat-label">View Directory</div>
+                </div>
+            </div>
+        </a>
+        <a href="{{ url_for('add_student') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon green">➕</div>
+                <div>
+                    <div class="stat-value">Add</div>
+                    <div class="stat-label">New Student</div>
+                </div>
+            </div>
+        </a>
+        <a href="{{ url_for('upload_file') }}" style="text-decoration: none;">
+            <div class="stat-card">
+                <div class="stat-icon gold">📁</div>
+                <div>
+                    <div class="stat-value">Upload</div>
+                    <div class="stat-label">File Management</div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Quick Actions</div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <a href="{{ url_for('search_students') }}" class="btn btn-outline"><span class="nav-icon">🔍</span> Search Records</a>
+            <a href="#" class="btn btn-outline"><span class="nav-icon">🔑</span> Change Password</a>
+            <a href="#" class="btn btn-outline"><span class="nav-icon">✏️</span> Edit Profile</a>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}My Grades - ISRM System{% endblock %}
+{% block page_title %}My Academic Performance{% endblock %}
+
+{% block content %}
+{% if student %}
+<div class="section-header">
+    <div>
+        <h2 class="section-title">Academic Report</h2>
+        <p class="section-sub">Student: {{ student[1] }} ({{ student[0] }})</p>
+    </div>
+    <a href="{{ url_for('student_profile') }}" class="btn btn-outline">Back to Profile</a>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon navy">⭐</div>
+        <div>
+            <div class="stat-value">{{ student[2] }}</div>
+            <div class="stat-label">Current CGPA</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon {% if student[2]|float >= 3.0 %}green{% else %}danger{% endif %}">📈</div>
+        <div>
+            <div class="stat-value" style="font-size: 20px;">
+                {% if student[2]|float >= 3.75 %}
+                    EXCELLENT
+                {% elif student[2]|float >= 3.0 %}
+                    GOOD
+                {% else %}
+                    WARNING
+                {% endif %}
+            </div>
+            <div class="stat-label">Academic Status</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon gold">🎯</div>
+        <div>
+            <div class="stat-value">120</div>
+            <div class="stat-label">Credits Earned</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">GPA Scale Interpretation</div>
+    </div>
+    <div class="table-wrap">
+        <table class="styled">
+            <thead>
+                <tr>
+                    <th>GPA Range</th>
+                    <th>Performance Level</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>3.75 - 4.00</strong></td>
+                    <td><span class="badge badge-success">EXCELLENT</span></td>
+                    <td>Outstanding academic performance</td>
+                </tr>
+                <tr>
+                    <td><strong>3.50 - 3.74</strong></td>
+                    <td><span class="badge badge-success">VERY GOOD</span></td>
+                    <td>Above average performance</td>
+                </tr>
+                <tr>
+                    <td><strong>3.00 - 3.49</strong></td>
+                    <td><span class="badge badge-admin">GOOD</span></td>
+                    <td>Satisfactory performance</td>
+                </tr>
+                <tr>
+                    <td><strong>&lt; 3.00</strong></td>
+                    <td><span class="badge badge-danger">LOW</span></td>
+                    <td>Needs improvement</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-danger">
+    <span>❌</span>
+    Your student record was not found. Please contact administration.
+</div>
+{% endif %}
+{% endblock %}

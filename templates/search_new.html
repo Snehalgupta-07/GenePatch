@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Search Students - ISRM System{% endblock %}
+{% block page_title %}Search Directory{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+        <div class="card-title">Find a Student</div>
+    </div>
+
+    <form method="POST" action="{{ url_for('search_students') }}" style="display: flex; gap: 12px; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; margin: 0;">
+            <label class="form-label" for="search">Search by Name, Roll No, or Email</label>
+            <input type="text" id="search" name="search" placeholder="Enter search term..." required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height: 43px;">
+            Search
+        </button>
+    </form>
+</div>
+
+{% if results %}
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Search Results</div>
+        <div><span class="badge badge-success">{{ results|length }} found</span></div>
+    </div>
+    
+    <div class="table-wrap">
+        <table class="styled">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Roll No</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>#{{ result[0] }}</td>
+                    <td>{{ result[1] }}</td>
+                    <td>{{ result[2] }}</td>
+                    <td>{{ result[3] }}</td>
+                    <td><strong>{{ result[4] }}</strong></td>
+                    <td>
+                        <a href="{{ url_for('view_student', student_id=result[0]) }}" class="btn btn-outline btn-sm">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

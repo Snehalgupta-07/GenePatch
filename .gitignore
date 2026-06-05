@@ -1,0 +1,49 @@
+# Virtual Environment
+.venv-1/
+venv/
+env/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.pytest_cache/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Flask session files
+flask_session/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated reports and artifacts
+reports/
+*.json
+reports/*.html
+uploads/*
+
+# Logs
+*.log
+logs/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Jenkins
+.jenkins.yml

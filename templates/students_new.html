@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Student List - ISRM System{% endblock %}
+{% block page_title %}Student Directory{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">All Students</div>
+        <div>
+            <span class="badge badge-admin">Total: {{ students|length }}</span>
+        </div>
+    </div>
+
+    {% if students %}
+    <div class="table-wrap">
+        <table class="styled">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Roll No</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>SSN</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>#{{ student[0] }}</td>
+                    <td><strong>{{ student[1] }}</strong></td>
+                    <td>{{ student[2] }}</td>
+                    <td>{{ student[3] }}</td>
+                    <td>{{ student[4] }}</td>
+                    <td><code style="background: rgba(0,0,0,0.05); padding: 3px 6px; border-radius: 4px; font-size: 12px;">{{ student[5] }}</code></td>
+                    <td>
+                        <a href="{{ url_for('view_student', student_id=student[0]) }}" class="btn btn-outline btn-sm">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <span>ℹ️</span>
+        No students found in the system.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

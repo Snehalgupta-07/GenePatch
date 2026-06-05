@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - ISRM System{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+{% if student %}
+<div class="section-header">
+    <div>
+        <h2 class="section-title">{{ student[2] }}</h2>
+        <p class="section-sub">Roll No: {{ student[1] }}</p>
+    </div>
+    <a href="{{ url_for('student_grades') }}" class="btn btn-primary">View Grades</a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Personal Information</div>
+    </div>
+
+    <div class="detail-grid">
+        <div class="detail-row">
+            <span class="detail-label">Roll Number</span>
+            <span class="detail-value">{{ student[1] }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Full Name</span>
+            <span class="detail-value">{{ student[2] }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Email Address</span>
+            <span class="detail-value">{{ student[3] }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Phone Number</span>
+            <span class="detail-value">{{ student[4] }}</span>
+        </div>
+        <div class="detail-row" style="grid-column: 1 / -1;">
+            <span class="detail-label">Current Address</span>
+            <span class="detail-value">{{ student[5] }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card" style="border-top: 3px solid var(--info);">
+        <div class="stat-icon blue">📚</div>
+        <div>
+            <div class="stat-value">120</div>
+            <div class="stat-label">Total Credits</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="border-top: 3px solid var(--success);">
+        <div class="stat-icon green">🎓</div>
+        <div>
+            <div class="stat-value">Good</div>
+            <div class="stat-label">Academic Standing</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="border-top: 3px solid var(--gold);">
+        <div class="stat-icon gold">🗓️</div>
+        <div>
+            <div class="stat-value">8th</div>
+            <div class="stat-label">Current Semester</div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-danger">
+    <span>❌</span>
+    Your student record was not found. Please contact administration.
+</div>
+{% endif %}
+{% endblock %}

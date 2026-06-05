@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}System Logs - ISRM System{% endblock %}
+{% block page_title %}System Logs (Audit Trail){% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Recent Activity</div>
+        <div>
+            <span class="badge badge-admin">Last 100 entries</span>
+        </div>
+    </div>
+
+    {% if logs %}
+    <div class="table-wrap">
+        <table class="styled">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Action Event</th>
+                    <th>Username</th>
+                    <th>Details</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>#{{ log[0] }}</td>
+                    <td>
+                        {% if log[1] == 'LOGIN_SUCCESS' %}
+                            <span class="log-action log-login">{{ log[1] }}</span>
+                        {% elif log[1] == 'LOGIN_FAILED' %}
+                            <span class="log-action log-failed">{{ log[1] }}</span>
+                        {% elif 'UPLOAD' in log[1] or 'DOWNLOAD' in log[1] %}
+                            <span class="log-action log-upload">{{ log[1] }}</span>
+                        {% else %}
+                            <span class="log-action log-access">{{ log[1] }}</span>
+                        {% endif %}
+                    </td>
+                    <!-- VULNERABILITY: Stored XSS (using | safe disables HTML escaping) -->
+                    <td><strong>{{ log[2] | safe }}</strong></td>
+                    <td style="color: var(--text-muted); font-size: 13px;">{{ log[3] | safe }}</td>
+                    <td style="font-size: 12px; color: var(--text-muted);">{{ log[4] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <span>ℹ️</span> No system logs found.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

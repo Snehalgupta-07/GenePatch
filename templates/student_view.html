@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Student Details - ISRM System{% endblock %}
+{% block page_title %}Student Details{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <h2 class="section-title">{{ student[2] }}</h2>
+        <p class="section-sub">Student Record #{{ student[0] }}</p>
+    </div>
+    <a href="{{ url_for('students') }}" class="btn btn-outline">Back to List</a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Personal Information</div>
+    </div>
+
+    <div class="detail-grid">
+        <div class="detail-row">
+            <span class="detail-label">Roll Number</span>
+            <span class="detail-value">{{ student[1] }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Full Name</span>
+            <span class="detail-value">{{ student[2] }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Email Address</span>
+            <span class="detail-value">{{ student[3] }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Phone Number</span>
+            <span class="detail-value">{{ student[4] }}</span>
+        </div>
+        <div class="detail-row" style="grid-column: 1 / -1;">
+            <span class="detail-label">Current Address</span>
+            <span class="detail-value">{{ student[5] }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="border-top: 4px solid var(--danger);">
+    <div class="card-header" style="margin-bottom: 12px;">
+        <div class="card-title" style="color: var(--danger);">Confidential Data (Exposed intentionally for demonstration)</div>
+    </div>
+    
+    <div class="alert alert-warning" style="margin-top: 0; margin-bottom: 24px; font-size: 12px; padding: 10px 14px;">
+        ⚠️ This section deliberately demonstrates Information Disclosure (CWE-200) vulnerabilities.
+    </div>
+
+    <div class="detail-grid">
+        <div class="detail-row">
+            <span class="detail-label" style="color: var(--danger);">SSN / National ID</span>
+            <span class="detail-value"><code style="background: rgba(239,68,68,0.1); padding: 4px 8px; border-radius: 4px;">{{ student[6] }}</code></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label" style="color: var(--danger);">Stored Password (Plaintext)</span>
+            <span class="detail-value"><code style="background: rgba(239,68,68,0.1); padding: 4px 8px; border-radius: 4px;">{{ student[8] }}</code></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Current GPA</span>
+            <span class="detail-value">{{ student[7] }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
