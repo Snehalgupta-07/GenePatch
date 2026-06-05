@@ -11,6 +11,7 @@ import os
 import json
 import time
 import subprocess
+import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -27,7 +28,7 @@ genai.configure(api_key=API_KEY)
 
 # Use the best model available on the free tier for code generation
 try:
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     print(f"[!] Failed to initialize Gemini model: {e}")
     exit(1)
@@ -105,17 +106,12 @@ def remediate_vulnerability(finding):
         print(f"[!] AI Remediation API Call Failed: {e}")
         return None
 
-def apply_patch_and_branch(patch_data):
-    """Creates a git branch and applies the LLM's code modifications."""
+def apply_patch_and_commit(patch_data):
+    """Applies the LLM's code modifications and commits them to the current branch."""
     if not patch_data:
         return
         
     print(f"\n[+] AI Architect's Explanation: {patch_data.get('explanation', 'No explanation provided.')}")
-    
-    # Create a new local branch for the fix
-    branch_name = f"ai-patch-{int(time.time())}"
-    print(f"[*] Checking out new local branch: {branch_name}")
-    subprocess.run(["git", "checkout", "-b", branch_name], check=False, capture_output=True)
     
     # Apply changes securely
     allowed_files = ['app.py', 'database.py']
@@ -146,10 +142,36 @@ def apply_patch_and_branch(patch_data):
     subprocess.run(["git", "commit", "-m", commit_msg], check=False, capture_output=True)
     
     print("\n" + "=" * 60)
-    print(f"[SUCCESS] Vulnerability successfully patched by Blue Team AI!")
-    print(f"The secure code has been committed to the branch: '{branch_name}'")
-    print(f"Run 'git diff main {branch_name}' to review the architectural changes.")
+    print(f"[SUCCESS] Vulnerability fix committed successfully!")
     print("=" * 60)
+
+def create_pull_request(branch_name, pr_title="Security Auto-Remediation Patch"):
+    """Uses the GitHub API to automatically open a Pull Request."""
+    github_token = os.getenv("GITHUB_TOKEN")
+    if not github_token:
+        print("\n[!] GITHUB_TOKEN not found in environment variables. Skipping automatic PR creation.")
+        print("[*] To enable automatic PRs, add GITHUB_TOKEN to Jenkins or your .env file.")
+        return
+        
+    print(f"\n[*] Opening Pull Request for branch '{branch_name}'...")
+    url = "https://api.github.com/repos/Snehalgupta-07/GenePatch/pulls"
+    headers = {
+        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    data = {
+        "title": pr_title,
+        "head": branch_name,
+        "base": "main",
+        "body": "### AI Auto-Remediation\n\nThe Genetic Algorithm Fuzzer discovered vulnerabilities in the `main` branch. The Blue Team LLM has mathematically analyzed the exploits and rewritten the vulnerable code to securely patch them.\n\nPlease review these changes before merging."
+    }
+    
+    response = requests.post(url, headers=headers, json=data)
+    if response.status_code == 201:
+        pr_url = response.json().get("html_url")
+        print(f"[SUCCESS] Pull Request created automatically: {pr_url}")
+    else:
+        print(f"[!] Failed to create PR. GitHub API responded with {response.status_code}: {response.text}")
 
 def main():
     print("=" * 60)
@@ -175,11 +197,23 @@ def main():
         
     print(f"[!] Detected {len(findings)} successful exploits from the Genetic Algorithm.")
     
-    # For MVP, we take the first critical finding and remediate it
-    target_finding = findings[0]
+    # Create a new local branch for all fixes
+    branch_name = f"ai-patch-{int(time.time())}"
+    print(f"[*] Checking out new local branch: {branch_name}")
+    subprocess.run(["git", "checkout", "-b", branch_name], check=False, capture_output=True)
     
-    patch_data = remediate_vulnerability(target_finding)
-    apply_patch_and_branch(patch_data)
+    # Loop through ALL findings and remediate them sequentially
+    for i, target_finding in enumerate(findings):
+        print(f"\n--- Processing Vulnerability {i+1}/{len(findings)} ---")
+        patch_data = remediate_vulnerability(target_finding)
+        apply_patch_and_commit(patch_data)
+        
+    print(f"\n[*] All fixes applied. Pushing branch '{branch_name}' to GitHub...")
+    subprocess.run(["git", "push", "-u", "origin", branch_name], check=False)
+    
+    # Trigger the automatic Pull Request
+    create_pull_request(branch_name, pr_title=f"Security Patch: Automated Remediation ({len(findings)} fixes)")
+    print("\n[*] Remediation workflow complete!")
 
 if __name__ == "__main__":
     main()
