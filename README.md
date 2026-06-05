@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-The **ISRM Vulnerable Student Management System** is a research-grade, educational web application designed to demonstrate critical web security vulnerabilities and their relevant industry-standard remediations. 
+The **ISRM Vulnerable Student Management System** is a research-grade, educational web application designed to demonstrate critical web security vulnerabilities and their relevant industry-standard remediations . 
 
 In the modern landscape of cybersecurity, theoretical knowledge is insufficient. This project solves the problem of abstract security education by providing a tangible, hands-on environment where developers and security researchers can actively exploit vulnerabilities—such as SQL Injection, Cross-Site Scripting (XSS), and Cross-Site Request Forgery (CSRF)—and subsequently analyze the patched, production-ready code. The high-level system idea is a dual-state architecture: a vulnerable baseline application and a fully secured iteration, allowing for direct comparative analysis of code patterns.
 
