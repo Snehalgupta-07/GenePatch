@@ -21,12 +21,26 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax' # Or 'Strict' depending on requirements
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30) # Enforce session timeout
 
+# SECURE: Override or set a robust UPLOAD_FOLDER and STATIC_ASSETS_FOLDER.
+# The default UPLOAD_FOLDER from Config might be a relative path or even '.' which is risky.
+# We ensure it's an absolute path, ideally outside the application's source tree.
+# For this example, we place user uploads in Flask's instance_path, which is designed for app-specific data
+# that shouldn't be in version control, making it a safer default than app.root_path.
+# In a production environment, this should ideally be configured to a known, non-web-accessible path like '/var/app_data/my_app_uploads'.
+app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'user_uploads')
+
+# Define a separate, dedicated folder for application-provided public static assets.
+# This prevents mixing user uploads with application's static content and isolates it from sensitive source code.
+app.config['STATIC_ASSETS_FOLDER'] = os.path.join(app.root_path, 'application_static_public')
+
 # Initialize database
 if not os.path.exists(database.DB_NAME):
     database.init_db()
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Ensure static assets folder exists
+os.makedirs(app.config['STATIC_ASSETS_FOLDER'], exist_ok=True)
 
 # SECURE: Rate limiting for login attempts
 # Stores {username: [timestamp1, timestamp2, ...]}
@@ -406,58 +420,56 @@ def upload_file():
 def download_file(filename):
     """
     SECURE: Prevents Path Traversal by using send_from_directory.
+    This route serves user-uploaded files from a dedicated, secure UPLOAD_FOLDER.
     """
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
     try:
-        # SECURE: send_from_directory ensures file is within the base directory and sanitizes filename
-        # It handles path traversal attempts automatically.
-        database.log_action('FILE_DOWNLOAD', session.get('username'), f"Attempted download of: {filename}")
+        # SECURE: send_from_directory ensures file is within the base directory and sanitizes filename.
+        # It handles path traversal attempts automatically. This now points to the securely defined app.config['UPLOAD_FOLDER'].
+        database.log_action('FILE_DOWNLOAD', session.get('username'), f"Attempted download of uploaded file: {filename}")
         return send_from_directory(app.config['UPLOAD_FOLDER'], secure_filename(filename), as_attachment=True)
     except FileNotFoundError:
         flash("File not found or access denied.", 'danger')
-        database.log_action('FILE_DOWNLOAD_FAILED', session.get('username'), f"File not found: {filename}")
+        database.log_action('FILE_DOWNLOAD_FAILED', session.get('username'), f"Uploaded file not found: {filename}")
         return redirect(url_for('dashboard'))
     except Exception as e:
         flash(f"Error downloading file: {str(e)}", 'danger')
-        database.log_action('FILE_DOWNLOAD_FAILED', session.get('username'), f"Error downloading file {filename}: {str(e)}")
+        database.log_action('FILE_DOWNLOAD_FAILED', session.get('username'), f"Error downloading uploaded file {filename}: {str(e)}")
         return redirect(url_for('dashboard'))
 
 @app.route('/static_assets/<path:filepath>') # Renamed endpoint to be more specific and restrict to known safe assets
 def access_file(filepath):
     """
     SECURE: Restricted file access to a specific, safe directory using send_from_directory.
-    Replaced original highly vulnerable direct file access.
-    This endpoint should ideally only serve non-sensitive static content.
+    This endpoint is now dedicated to serving application-provided static content, not user uploads.
     """
     if 'user_id' not in session: # Still require auth for this example, could be public for true static assets
         return redirect(url_for('login'))
     
-    # SECURE: Use send_from_directory to serve files ONLY from a designated safe directory
-    # This prevents access to arbitrary files on the system via path traversal.
-    # The `filepath` argument to send_from_directory is relative to the directory it's serving from.
-    # It automatically handles secure_filename-like behavior and path validation.
-    safe_directory = app.config['UPLOAD_FOLDER'] # Or another dedicated static_assets folder for public non-uploaded files
-    
     try:
-        # Ensure the filename is secure within the specified path
-        # For <path:filepath>, secure_filename would strip slashes if not desired.
-        # send_from_directory handles path traversal internally, so direct filepath is okay here.
+        # SECURE: Use send_from_directory to serve files ONLY from the new designated STATIC_ASSETS_FOLDER.
+        # This prevents access to arbitrary files on the system via path traversal and isolates static assets
+        # from user uploads and application source code. It also implicitly handles path validation.
+        safe_directory = app.config['STATIC_ASSETS_FOLDER']
+        
+        # Verify the file is actually intended to be served as a static asset.
+        # This check is a defense-in-depth, as send_from_directory itself should prevent traversal.
         full_path = os.path.join(safe_directory, filepath)
         if not os.path.exists(full_path) or not os.path.isfile(full_path):
-             raise FileNotFoundError # Ensure it's a file and exists
+             raise FileNotFoundError # Ensure it's a file and exists within the designated static directory
 
-        database.log_action('FILE_ACCESS', session.get('username'), f"Accessed file: {filepath}")
+        database.log_action('FILE_ACCESS', session.get('username'), f"Accessed static asset: {filepath}")
         return send_from_directory(safe_directory, filepath)
 
     except FileNotFoundError:
-        flash("File not found or access denied.", 'danger')
-        database.log_action('FILE_ACCESS_FAILED', session.get('username'), f"File not found: {filepath}")
+        flash("Static asset not found or access denied.", 'danger')
+        database.log_action('FILE_ACCESS_FAILED', session.get('username'), f"Static asset not found: {filepath}")
         return redirect(url_for('dashboard'))
     except Exception as e:
-        flash(f"Error accessing file: {str(e)}", 'danger')
-        database.log_action('FILE_ACCESS_FAILED', session.get('username'), f"Error accessing file {filepath}: {str(e)}")
+        flash(f"Error accessing static asset: {str(e)}", 'danger')
+        database.log_action('FILE_ACCESS_FAILED', session.get('username'), f"Error accessing static asset {filepath}: {str(e)}")
         return redirect(url_for('dashboard'))
 
 @app.route('/view_logs')
