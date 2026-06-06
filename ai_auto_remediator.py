@@ -229,6 +229,12 @@ def main():
             
         # 3. Gate 2: Security Verification
         print("[*] Gate 2: Running Security Verification (Fuzzer)...")
+        # Ensure fresh database schema
+        if os.path.exists('vulnerable_app.db'):
+            try:
+                os.remove('vulnerable_app.db')
+            except Exception:
+                pass
         server_proc = subprocess.Popen(["venv\\Scripts\\python.exe", "app.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(3) # Wait for Flask to boot
         

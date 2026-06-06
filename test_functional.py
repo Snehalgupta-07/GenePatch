@@ -1,12 +1,19 @@
+import os
 import pytest
 from app import app
-from database import init_db
+from database import init_db, DB_NAME
 
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
     with app.test_client() as client:
         with app.app_context():
+            # Ensure fresh schema by deleting old database file
+            if os.path.exists(DB_NAME):
+                try:
+                    os.remove(DB_NAME)
+                except Exception:
+                    pass
             init_db()
         yield client
 
