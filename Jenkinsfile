@@ -12,17 +12,6 @@ pipeline {
     
     stages {
         
-        stage('0. Checkout') {
-            steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[url: 'https://github.com/Snehalgupta-07/GenePatch.git']]
-                ])
-                bat 'dir'
-            }
-        }
-        
         stage('1. Build Environment') {
             steps {
                 bat """
@@ -37,6 +26,16 @@ pipeline {
                     venv\\Scripts\\pip install --upgrade pip
                     venv\\Scripts\\pip install -r requirements.txt
                     venv\\Scripts\\pip install bandit
+                """
+            }
+        }
+        
+        stage('1.5 Functional Testing') {
+            steps {
+                bat """
+                    echo "[*] Running Functional Regression Tests..."
+                    call venv\\Scripts\\activate.bat
+                    venv\\Scripts\\pytest test_functional.py -v
                 """
             }
         }
@@ -94,14 +93,21 @@ pipeline {
             echo "========== ADVERSARIAL PIPELINE COMPLETE =========="
         }
         success {
-            echo "[SUCCESS] Application withstood both Static Scans and the Genetic Algorithm. Secure deployment allowed."
+            echo "[SUCCESS] Application withstood Functional Tests, Static Scans, and the Genetic Algorithm. Secure deployment allowed."
         }
         failure {
-            echo "[!] VULNERABILITY DETECTED! Triggering AI Blue Team (LLM Auto-Remediator)..."
-            bat """
-                call venv\\Scripts\\activate.bat
-                venv\\Scripts\\python.exe ai_auto_remediator.py
-            """
+            script {
+                if (env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main' || env.GIT_BRANCH == 'main') {
+                    echo "[!] VULNERABILITY DETECTED ON MAIN! Triggering AI Blue Team (LLM Auto-Remediator)..."
+                    bat """
+                        call venv\\Scripts\\activate.bat
+                        venv\\Scripts\\python.exe ai_auto_remediator.py
+                    """
+                } else {
+                    echo "[!] PIPELINE FAILED ON PR BRANCH '${env.BRANCH_NAME}'."
+                    echo "[!] AI Remediation will not run on Pull Requests to prevent infinite loops."
+                }
+            }
         }
     }
 }
