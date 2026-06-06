@@ -60,10 +60,10 @@ pipeline {
                     call venv\\Scripts\\activate.bat
                     
                     echo "[*] Booting up live Flask application in the background..."
-                    start "Flask_App" /b venv\\Scripts\\python.exe app.py
+                    start "Flask_App" /b venv\\Scripts\\python.exe app.py > flask.log 2>&1
                     
-                    echo "[*] Waiting 3 seconds for server to bind to port 5000..."
-                    timeout /t 3 /nobreak > NUL
+                    echo "[*] Waiting 4 seconds for server to bind to port 5000..."
+                    ping 127.0.0.1 -n 5 > NUL
                     
                     echo "[*] Unleashing Genetic Algorithm Fuzzer..."
                     venv\\Scripts\\python.exe ga_fuzzer.py
