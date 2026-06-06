@@ -97,52 +97,44 @@ def init_db():
 
 def authenticate_user(username, password):
     """
-    VULNERABILITY: SQL Injection
-    Description: Uses string concatenation instead of parameterized queries
-    Impact: Attacker can bypass authentication with SQL injection
+    SECURE: Uses parameterized queries to prevent SQL Injection.
+    Does not log sensitive details like passwords.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # VULNERABLE: SQL Injection - String concatenation
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-    
-    print(f"[DEBUG] Executing query: {query}")  # VULNERABLE: Information Disclosure
+    # SECURE: SQL Injection fixed - Use parameterized queries
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
     
     user = None
     try:
-        cursor.execute(query)
+        cursor.execute(query, (username, password))
         user = cursor.fetchone()
     except Exception as e:
-        # VULNERABLE: Information Disclosure - Detailed error messages
+        # Avoid detailed error messages. Log internally, but do not expose to user.
         print(f"[ERROR] Authentication failed: {str(e)}")
     finally:
-        conn.close()  # Close connection BEFORE logging
+        conn.close()  # Ensure connection is always closed
     
-    # Log AFTER closing connection to avoid database lock
-    if user:
-        log_action('AUTH_ATTEMPT', username, f"Password: {password}, Result: Success")
-    else:
-        log_action('AUTH_ATTEMPT', username, f"Password: {password}, Result: Failed")
+    # Log action outside try-finally to ensure connection is closed before logging
+    # SECURE: Do not log sensitive data like passwords in details
+    log_action('AUTH_ATTEMPT', username, f"Result: {'Success' if user else 'Failed'}")
     
     return user
 
 def search_students(search_term):
     """
-    VULNERABILITY: SQL Injection
-    Description: Allows SQL injection in student search
-    Impact: Data breach, unauthorized access
+    SECURE: Uses parameterized queries to prevent SQL Injection.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # VULNERABLE: SQL Injection - Direct string interpolation
-    query = f"SELECT id, name, email, phone, roll_no FROM students WHERE name LIKE '%{search_term}%' OR roll_no LIKE '%{search_term}%' OR email LIKE '%{search_term}%'"
-    
-    print(f"[DEBUG] Search query: {query}")  # Information Disclosure
+    # SECURE: SQL Injection fixed - Use parameterized queries for LIKE clauses
+    search_pattern = f"%{search_term}%"
+    query = "SELECT id, name, email, phone, roll_no FROM students WHERE name LIKE ? OR roll_no LIKE ? OR email LIKE ?"
     
     try:
-        cursor.execute(query)
+        cursor.execute(query, (search_pattern, search_pattern, search_pattern))
         results = cursor.fetchall()
         conn.close()
         return results
@@ -152,22 +144,20 @@ def search_students(search_term):
 
 def get_student_details(student_id):
     """
-    VULNERABILITY: SQL Injection + Sensitive Data Exposure
-    Description: No input validation, exposes SSN and passwords
+    SECURE: Uses parameterized queries to prevent SQL Injection.
+    Avoids sensitive data exposure by explicitly selecting columns.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # VULNERABLE: SQL Injection
-    query = f"SELECT * FROM students WHERE id = {student_id}"
-    
-    print(f"[DEBUG] Student query: {query}")
+    # SECURE: SQL Injection fixed - Use parameterized query
+    # SECURE: Avoid Sensitive Data Exposure - Only select necessary, non-sensitive columns
+    query = "SELECT id, roll_no, name, email, phone, address, gpa FROM students WHERE id = ?"
     
     try:
-        cursor.execute(query)
+        cursor.execute(query, (student_id,))
         student = cursor.fetchone()
         conn.close()
-        # VULNERABLE: Returns sensitive data including SSN and password
         return student
     except Exception as e:
         print(f"[ERROR] Query failed: {str(e)}")
@@ -175,21 +165,22 @@ def get_student_details(student_id):
 
 def add_student(roll_no, name, email, phone, address, ssn, gpa):
     """
-    VULNERABILITY: No input validation, no parameterized queries
+    SECURE: Uses parameterized queries to prevent SQL Injection.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
     try:
-        # VULNERABLE: No input validation
-        query = f'''
+        # SECURE: SQL Injection fixed - Use parameterized query
+        # Note: Password handling here is still weak (using roll_no as password).
+        # For a full secure solution, passwords should be hashed and salted.
+        query = '''
             INSERT INTO students (roll_no, name, email, phone, address, ssn, gpa, password) 
-            VALUES ('{roll_no}', '{name}', '{email}', '{phone}', '{address}', '{ssn}', {gpa}, '{roll_no}')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         '''
         
-        print(f"[DEBUG] Insert query: {query}")  # Information Disclosure
+        cursor.execute(query, (roll_no, name, email, phone, address, ssn, gpa, roll_no))
         
-        cursor.execute(query)
         conn.commit()
         conn.close()
         return True
@@ -199,8 +190,8 @@ def add_student(roll_no, name, email, phone, address, ssn, gpa):
 
 def log_action(action, username, details):
     """
-    VULNERABILITY: Information Disclosure
-    Logs sensitive details including passwords and personal info
+    SECURE: This function logs provided details. It is the responsibility
+    of the calling function to ensure 'details' do not contain sensitive information.
     """
     try:
         conn = sqlite3.connect(DB_NAME, timeout=5.0)  # Wait up to 5 seconds for lock
@@ -214,6 +205,7 @@ def log_action(action, username, details):
         conn.commit()
         conn.close()
     except sqlite3.OperationalError as e:
-        # If database is locked, just print warning and continue
+        # If database is locked, just print warning and continue. 
+        # In a production environment, consider a more robust logging strategy.
         print(f"[WARNING] Could not log action (database locked): {str(e)}")
         pass
