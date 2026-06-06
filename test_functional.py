@@ -6,6 +6,7 @@ from database import init_db, DB_NAME
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
+    app.config['WTF_CSRF_ENABLED'] = False
     with app.test_client() as client:
         with app.app_context():
             # Ensure fresh schema by deleting old database file
