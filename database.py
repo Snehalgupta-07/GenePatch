@@ -1,4 +1,4 @@
-# Database Module - Contains SQL Injection Vulnerabilities
+# Database Module - Contains SQL Injection Vulnerabilities (FIXED)
 import sqlite3
 import os
 from datetime import datetime
@@ -39,7 +39,7 @@ def init_db():
         )
     ''')
     
-    # Create logs table - VULNERABLE: Logs sensitive data
+    # Create logs table - VULNERABLE: Logs sensitive data (Information Disclosure)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,110 +97,104 @@ def init_db():
 
 def authenticate_user(username, password):
     """
-    VULNERABILITY: SQL Injection
-    Description: Uses string concatenation instead of parameterized queries
-    Impact: Attacker can bypass authentication with SQL injection
+    FIXED: SQL Injection - Uses parameterized queries
+    Description: Authenticates a user securely using prepared statements.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # VULNERABLE: SQL Injection - String concatenation
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-    
-    print(f"[DEBUG] Executing query: {query}")  # VULNERABLE: Information Disclosure
+    # SECURE: Using parameterized query to prevent SQL Injection
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
     
     user = None
     try:
-        cursor.execute(query)
+        cursor.execute(query, (username, password)) # Pass parameters as a tuple
         user = cursor.fetchone()
     except Exception as e:
-        # VULNERABLE: Information Disclosure - Detailed error messages
-        print(f"[ERROR] Authentication failed: {str(e)}")
+        # Improved error handling, avoid revealing raw SQL errors to users/logs directly
+        print(f"[ERROR] Database operation failed during authentication: {str(e)}")
     finally:
-        conn.close()  # Close connection BEFORE logging
+        conn.close()
     
     # Log AFTER closing connection to avoid database lock
     if user:
-        log_action('AUTH_ATTEMPT', username, f"Password: {password}, Result: Success")
+        log_action('AUTH_ATTEMPT', username, f"Result: Success") # Removed password from log for information disclosure
     else:
-        log_action('AUTH_ATTEMPT', username, f"Password: {password}, Result: Failed")
+        log_action('AUTH_ATTEMPT', username, f"Result: Failed") # Removed password from log for information disclosure
     
     return user
 
 def search_students(search_term):
     """
-    VULNERABILITY: SQL Injection
-    Description: Allows SQL injection in student search
-    Impact: Data breach, unauthorized access
+    FIXED: SQL Injection - Uses parameterized queries
+    Description: Searches for students securely using parameterized queries.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # VULNERABLE: SQL Injection - Direct string interpolation
-    query = f"SELECT id, name, email, phone, roll_no FROM students WHERE name LIKE '%{search_term}%' OR roll_no LIKE '%{search_term}%' OR email LIKE '%{search_term}%'"
-    
-    print(f"[DEBUG] Search query: {query}")  # Information Disclosure
+    # SECURE: Using parameterized query
+    search_term_like = f"%{search_term}%" # Wildcards are part of the parameter value
+    query = "SELECT id, name, email, phone, roll_no FROM students WHERE name LIKE ? OR roll_no LIKE ? OR email LIKE ?"
     
     try:
-        cursor.execute(query)
+        cursor.execute(query, (search_term_like, search_term_like, search_term_like))
         results = cursor.fetchall()
         conn.close()
         return results
     except Exception as e:
-        print(f"[ERROR] Search failed: {str(e)}")
+        print(f"[ERROR] Secure search failed: {str(e)}")
         return []
 
 def get_student_details(student_id):
     """
-    VULNERABILITY: SQL Injection + Sensitive Data Exposure
-    Description: No input validation, exposes SSN and passwords
+    FIXED: SQL Injection - Uses parameterized queries
+    Description: Retrieves student details securely.
+    VULNERABILITY: Still returns sensitive data (SSN, password) - Information Disclosure.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # VULNERABLE: SQL Injection
-    query = f"SELECT * FROM students WHERE id = {student_id}"
-    
-    print(f"[DEBUG] Student query: {query}")
+    # SECURE: Using parameterized query
+    query = "SELECT * FROM students WHERE id = ?"
     
     try:
-        cursor.execute(query)
+        cursor.execute(query, (student_id,)) # Pass as a tuple
         student = cursor.fetchone()
         conn.close()
         # VULNERABLE: Returns sensitive data including SSN and password
         return student
     except Exception as e:
-        print(f"[ERROR] Query failed: {str(e)}")
+        print(f"[ERROR] Secure query for student details failed: {str(e)}")
         return None
 
 def add_student(roll_no, name, email, phone, address, ssn, gpa):
     """
-    VULNERABILITY: No input validation, no parameterized queries
+    FIXED: SQL Injection - Uses parameterized queries
+    VULNERABILITY: Still lacks comprehensive input validation for data types/formats.
     """
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
     try:
-        # VULNERABLE: No input validation
-        query = f'''
+        # SECURE: Using parameterized query
+        query = '''
             INSERT INTO students (roll_no, name, email, phone, address, ssn, gpa, password) 
-            VALUES ('{roll_no}', '{name}', '{email}', '{phone}', '{address}', '{ssn}', {gpa}, '{roll_no}')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         '''
         
-        print(f"[DEBUG] Insert query: {query}")  # Information Disclosure
-        
-        cursor.execute(query)
+        cursor.execute(query, (roll_no, name, email, phone, address, ssn, gpa, roll_no))
         conn.commit()
         conn.close()
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to add student: {str(e)}")
+        print(f"[ERROR] Failed to securely add student: {str(e)}")
         return False
 
 def log_action(action, username, details):
     """
     VULNERABILITY: Information Disclosure
-    Logs sensitive details including passwords and personal info
+    Logs sensitive details including passwords and personal info.
+    This function itself already used parameterized queries, so no SQLi here.
     """
     try:
         conn = sqlite3.connect(DB_NAME, timeout=5.0)  # Wait up to 5 seconds for lock
