@@ -217,12 +217,15 @@ def main():
         pytest_proc = subprocess.run(["venv\\Scripts\\pytest.exe", "test_functional.py", "-v"], capture_output=True, text=True)
         
         if pytest_proc.returncode != 0:
+            print(f"\n========== PYTEST OUTPUT ==========\n{pytest_proc.stdout}\n===================================")
             print("[!] FAILURE: The AI's patch broke the application syntax/functionality.")
             print("[*] Capturing Pytest traceback for feedback loop...")
             previous_errors = f"Your last patch introduced a bug. Pytest failed with this traceback:\n{pytest_proc.stdout[-800:]}"
             subprocess.run(["git", "reset", "--hard", "HEAD~1"], check=False, capture_output=True)
             time.sleep(5) # Wait out rate limits
             continue
+        else:
+            print(f"\n========== PYTEST OUTPUT ==========\n{pytest_proc.stdout}\n===================================")
             
         # 3. Gate 2: Security Verification
         print("[*] Gate 2: Running Security Verification (Fuzzer)...")
@@ -233,12 +236,15 @@ def main():
         server_proc.terminate()
         
         if fuzzer_proc.returncode != 0:
+            print(f"\n========== FUZZER OUTPUT ==========\n{fuzzer_proc.stdout}\n===================================")
             print("[!] FAILURE: The AI's patch did not actually fix the vulnerability.")
             print("[*] Capturing Fuzzer report for feedback loop...")
             previous_errors = "Your last patch was invalid. The genetic fuzzer still successfully exploited the endpoint. You must try a completely different architectural approach."
             subprocess.run(["git", "reset", "--hard", "HEAD~1"], check=False, capture_output=True)
             time.sleep(5)
             continue
+        else:
+            print(f"\n========== FUZZER OUTPUT ==========\n{fuzzer_proc.stdout}\n===================================")
             
         print("\n[SUCCESS] The AI Patch mathematically passed all Functional and Security gates!")
         success = True
