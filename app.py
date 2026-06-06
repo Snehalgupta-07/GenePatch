@@ -1,10 +1,11 @@
 # Main Flask Application - Vulnerable Student Management System
-from flask import Flask, render_template, request, redirect, session, url_for, send_file
+from flask import Flask, render_template, request, redirect, session, url_for, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 import database
 from config import Config
 from datetime import datetime, timedelta
+import logging # NEW: Import logging for app.logger
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -15,6 +16,9 @@ if not os.path.exists(database.DB_NAME):
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# NEW: Ensure secure docs folder exists for application-level public documents
+os.makedirs(os.path.join(app.root_path, app.config['SECURE_DOCS_FOLDER']), exist_ok=True)
 
 # VULNERABILITY: No rate limiting on login attempts (Brute Force & Credential Stuffing)
 LOGIN_ATTEMPTS = {}
@@ -29,6 +33,11 @@ def record_login_attempt(username):
 def check_rate_limit(username):
     """Not enforced - allows unlimited brute force attempts"""
     return True  # Always returns True - NO PROTECTION
+
+# NEW: Helper function to check for allowed file extensions
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 
 @app.route('/')
@@ -253,11 +262,11 @@ def search_students():
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
     """
-    VULNERABILITY: Multiple File Upload Issues
-    1. No file type validation (allows executables)
-    2. Path Traversal vulnerability
-    3. No file size limit enforcement
-    4. Predictable filenames
+    FIXED: Multiple File Upload Issues
+    1. No file type validation (allows executables) -> FIXED
+    2. Path Traversal vulnerability -> FIXED
+    3. No file size limit enforcement -> (Addressed by Flask config)
+    4. Predictable filenames -> (Requires further architectural change, out of scope for this fix focus)
     FIXED: Prevent students from uploading
     """
     if 'user_id' not in session:
@@ -280,20 +289,33 @@ def upload_file():
             flask.flash('No file selected', 'danger')
             return redirect(url_for('upload_file'))
         
-        # VULNERABILITY: No proper file validation
-        # Allow dangerous file extensions
-        filename = file.filename  # VULNERABLE: No sanitization
-        
+        # FIX: Validate file type against allowed extensions
+        if not allowed_file(file.filename):
+            import flask
+            flask.flash('Invalid file type. Only allowed types are: ' + ', '.join(app.config['ALLOWED_EXTENSIONS']), 'danger')
+            return redirect(url_for('upload_file'))
 
-        # VULNERABILITY: Path Traversal - No path validation
-        # Attacker can use "../" to upload outside intended directory
+        # FIX: Use secure_filename to sanitize filename and prevent path traversal during upload
+        filename = secure_filename(file.filename)
+        
+        # Check if filename is empty after sanitization
+        if not filename:
+            import flask
+            flask.flash('Invalid filename provided after sanitization.', 'danger')
+            return redirect(url_for('upload_file'))
+
+        # Path Traversal vulnerability FIXED by secure_filename
+        # File size limit is handled by app.config['MAX_CONTENT_LENGTH']
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
-        # VULNERABILITY: No file type check
-        # Allows executable files (.exe, .sh, .bat)
-        file.save(filepath)
+        try:
+            file.save(filepath)
+        except Exception as e:
+            app.logger.error(f"Error saving uploaded file '{filename}': {str(e)}")
+            import flask
+            flask.flash('Error uploading file.', 'danger')
+            return redirect(url_for('upload_file'))
         
-        # VULNERABILITY: Information Disclosure - Log file path
         database.log_action('FILE_UPLOAD', session.get('username'), f"Uploaded file: {filepath}")
         
         import flask
@@ -305,49 +327,58 @@ def upload_file():
 @app.route('/download/<filename>')
 def download_file(filename):
     """
-    VULNERABILITY: Path Traversal
-    No validation of filename parameter
-    Allows download of any file using ../ notation
+    FIXED: Path Traversal vulnerability
+    Now validates filename parameter and ensures the file is strictly within the UPLOAD_FOLDER.
     """
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    # VULNERABLE: Path Traversal - No sanitization
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    
-    if os.path.exists(filepath):
-        return send_file(filepath)
-    else:
-        return "File not found", 404
+    # FIX: Sanitize filename by stripping any directory components.
+    # This ensures only the base filename is used, preventing path traversal attempts.
+    safe_filename = os.path.basename(filename)
 
-@app.route('/file/<path:filepath>')
-def access_file(filepath):
-    """
-    VULNERABILITY: Unrestricted File Path Access
-    CWE-434: Unrestricted Upload of File with Dangerous Type
-    CWE-22: Path Traversal vulnerability
+    upload_folder_path = app.config['UPLOAD_FOLDER']
     
-    Allows direct access to ANY file on the system using path parameter
-    No validation - attackers can use this to:
-    - Download config.py (steal SECRET_KEY)
-    - Download vulnerable_app.db (steal all user/student data)
-    - Download app.py (get source code)
-    - Download database.py (leak database queries)
+    try:
+        # send_from_directory safely serves files, preventing path traversal
+        # by ensuring the requested file (safe_filename) is strictly within the specified directory.
+        response = send_from_directory(upload_folder_path, safe_filename)
+        # Optionally log successful download, but avoid logging actual file content.
+        return response
+    except FileNotFoundError:
+        return "File not found", 404
+    except Exception as e:
+        app.logger.error(f"Error downloading file '{safe_filename}' from '{upload_folder_path}': {str(e)}")
+        return "Error accessing file", 500
+
+@app.route('/file/<path:filename_or_path>') # Changed parameter name for clarity
+def access_file(filename_or_path):
+    """
+    FIXED: Unrestricted File Path Access and Path Traversal vulnerability
+    This route now serves application-specific files ONLY from a designated SECURE_DOCS_FOLDER,
+    preventing arbitrary file access to files like config.py.
     """
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    # CRITICAL VULNERABILITY: No path validation whatsoever
-    # Directly trusts user input for file access
+    # FIX: Restrict access to a specific, non-sensitive directory within the application's root.
+    # This directory should contain only files explicitly intended for public access (e.g., terms, policies).
+    # This route is no longer for "ANY file on the system".
+    base_dir = os.path.join(app.root_path, app.config['SECURE_DOCS_FOLDER'])
+
     try:
-        if os.path.exists(filepath) and os.path.isfile(filepath):
-            database.log_action('FILE_ACCESS', session.get('username'), f"Accessed file: {filepath}")
-            return send_file(filepath)
-        else:
-            return "File not found or not a file", 404
+        # send_from_directory safely serves files, performing canonicalization and ensuring
+        # the requested file (filename_or_path) is strictly within base_dir.
+        response = send_from_directory(base_dir, filename_or_path)
+        database.log_action('FILE_ACCESS', session.get('username'), f"Accessed securely confined file: {filename_or_path} from {app.config['SECURE_DOCS_FOLDER']}")
+        return response
+    except FileNotFoundError:
+        # Generic error message to prevent information disclosure about file system structure.
+        return "File not found or access denied", 404
     except Exception as e:
-        # VULNERABILITY: Information Disclosure - reveals errors
-        return f"Error accessing file: {str(e)}", 500
+        app.logger.error(f"Error accessing file '{filename_or_path}' from confined directory '{base_dir}': {str(e)}")
+        # Generic error message to prevent information disclosure.
+        return "Error accessing file", 500
 
 @app.route('/view_logs')
 def view_logs():
@@ -382,18 +413,18 @@ def logout():
 
 @app.errorhandler(404)
 def not_found(error):
-    # VULNERABILITY: Information Disclosure - Detailed error
-    return f"404 Error: {error}", 404
+    # FIX: Generic error message to prevent information disclosure
+    return "404 Not Found", 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    # VULNERABILITY: Information Disclosure - Stack trace exposed
-    return f"500 Internal Server Error: {error}", 500
+    # FIX: Generic error message to prevent information disclosure
+    return "500 Internal Server Error", 500
 
 if __name__ == '__main__':
     # VULNERABILITY: Running in debug mode (not for production)
     # Debug mode exposes detailed error pages and allows code execution
+    # For production, set debug=False and configure proper logging and error handling.
     app.run(debug=True, host='0.0.0.0', port=5000)
 
     #testing
-
