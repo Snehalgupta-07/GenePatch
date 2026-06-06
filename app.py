@@ -272,6 +272,17 @@ def add_student():
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
+        try:
+            # SECURE: Explicitly validate CSRF token. Although Flask-CSRF's global protection
+            # should cover this, an explicit call here provides defense-in-depth against
+            # potential bypasses or misconfigurations that might cause the global middleware to fail.
+            csrf.protect()
+        except CSRFError as e:
+            flash("Invalid CSRF token. Please try again.", 'danger')
+            # Log the CSRF attack attempt for auditing
+            database.log_action('CSRF_ATTACK_DETECTED', session.get('username'), f"CSRF attack detected on add_student: {e.description}")
+            return render_template('add_student_new.html', form_data=request.form), 400
+
         roll_no = request.form.get('roll_no', '').strip()
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip()
